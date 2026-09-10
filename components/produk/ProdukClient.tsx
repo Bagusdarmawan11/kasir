@@ -113,13 +113,6 @@ export function ProdukClient({ initialProducts }: { initialProducts: ProductStoc
 
   return (
     <div className="animate-slide-up">
-      {!selectionMode && (
-        <div className="mb-3">
-          <Link href="/barang-masuk" className="block">
-            <Button variant="dark" size="sm" full><Plus size={15} /> Produk Baru</Button>
-          </Link>
-        </div>
-      )}
       <div className="mb-4">
         <h1 className="font-display text-2xl font-extrabold text-ink">Daftar Barang</h1>
         <p className="text-sm text-ink-soft">{products.length} produk terdaftar</p>
