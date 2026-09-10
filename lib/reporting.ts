@@ -56,12 +56,13 @@ export function determineReportPeriods(now: Date = new Date()): ReportPeriod[] {
   const yesterday = addDaysToDateString(todayWib, -1);
   const periods: ReportPeriod[] = [];
 
-  // Harian: selalu, untuk tanggal kemarin (hari yang baru berakhir)
+  // Harian: untuk hari INI (bukan kemarin) supaya laporan mencerminkan
+  // transaksi hari yang sama saat laporan dikirim
   periods.push({
     kind: 'harian',
-    label: `${dayNameOf(yesterday)}, ${formatLabelDate(yesterday)}`,
-    startDate: yesterday,
-    endDate: yesterday,
+    label: `${dayNameOf(todayWib)}, ${formatLabelDate(todayWib)}`,
+    startDate: todayWib,
+    endDate: todayWib,
   });
 
   // Mingguan: kalau HARI INI (WIB) adalah Senin, laporkan 7 hari terakhir (Senin lalu - Minggu kemarin)
