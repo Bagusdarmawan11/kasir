@@ -188,15 +188,10 @@ export function PengaturanClient() {
                 disabled={!waLoaded}
               />
             </Field>
-            <Field label="Jam Pengiriman Laporan Harian (WIB)" hint="Format 24 jam: HH:MM — contoh 00:30 untuk jam 12:30 malam, 07:00 untuk jam 7 pagi">
-              <Input
-                value={scheduleWib}
-                onChange={(e) => setScheduleWib(e.target.value)}
-                placeholder="00:00"
-                maxLength={5}
-                disabled={!waLoaded}
-              />
-            </Field>
+            <div className="rounded-xl bg-lilac-50 p-3 text-[11px] text-ink-soft">
+              <p className="font-bold text-ink">⏰ Jadwal Pengiriman: setiap hari jam 00:00 WIB</p>
+              <p className="mt-1">Laporan dikirim otomatis setiap hari tepat tengah malam WIB. Untuk ubah jam, edit file <span className="font-mono">vercel.json</span> di GitHub (butuh redeploy).</p>
+            </div>
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
