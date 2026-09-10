@@ -32,3 +32,12 @@ insert into app_settings (key, value) values
   ('report_mode', 'today'),
   ('report_days_ago', '0')
 on conflict (key) do nothing;
+
+-- Fitur baru pengaturan owner
+insert into app_settings (key, value) values
+  ('nama_warung', ''),
+  ('laporan_mingguan', 'true'),
+  ('laporan_bulanan', 'true'),
+  ('notif_stok_habis', 'false'),
+  ('template_laporan', '')
+on conflict (key) do nothing;

@@ -93,9 +93,36 @@ export async function determineReportPeriodsAsync(now: Date = new Date()): Promi
     endDate: targetDate,
   });
 
+  // Baca toggle mingguan/bulanan dari DB
+  let enableMingguan = true;
+  let enableBulanan = true;
+  let namaWarungDb = '';
+  let templateLaporan = '';
+  try {
+    const supabaseUrl2 = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey2 = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (supabaseUrl2 && serviceKey2) {
+      const res2 = await fetch(
+        `${supabaseUrl2}/rest/v1/app_settings?key=in.(laporan_mingguan,laporan_bulanan,nama_warung,template_laporan)&select=key,value`,
+        { headers: { apikey: serviceKey2, Authorization: `Bearer ${serviceKey2}` } }
+      );
+      if (res2.ok) {
+        const rows2 = await res2.json();
+        const mw = rows2.find((r: any) => r.key === 'laporan_mingguan');
+        const mb = rows2.find((r: any) => r.key === 'laporan_bulanan');
+        const nw = rows2.find((r: any) => r.key === 'nama_warung');
+        const tl = rows2.find((r: any) => r.key === 'template_laporan');
+        if (mw) enableMingguan = mw.value !== 'false';
+        if (mb) enableBulanan = mb.value !== 'false';
+        if (nw?.value) namaWarungDb = nw.value;
+        if (tl?.value) templateLaporan = tl.value;
+      }
+    }
+  } catch { /* pakai default */ }
+
   // Mingguan: kalau HARI INI (WIB) adalah Senin, laporkan 7 hari terakhir (Senin lalu - Minggu kemarin)
   const todayDow = dayOfWeekOf(todayWib);
-  if (todayDow === 1) {
+  if (enableMingguan && todayDow === 1) {
     // Senin
     const weekStart = addDaysToDateString(yesterday, -6); // 7 hari termasuk kemarin
     periods.push({
@@ -203,6 +230,25 @@ function buildMessage(period: ReportPeriod, sales: SaleForReport[], namaWarung: 
 export async function buildReportMessage(period: ReportPeriod, namaWarung: string): Promise<string> {
   const sales = await fetchSalesForPeriod(period);
   let message = buildMessage(period, sales, namaWarung);
+
+  // Baca template kustom dari DB
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (supabaseUrl && serviceKey) {
+      const res = await fetch(
+        `${supabaseUrl}/rest/v1/app_settings?key=eq.template_laporan&select=value`,
+        { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+      );
+      if (res.ok) {
+        const rows = await res.json();
+        const template = rows?.[0]?.value?.trim();
+        if (template && template.includes('{isi}')) {
+          message = template.replace('{isi}', message);
+        }
+      }
+    }
+  } catch { /* pakai pesan default */ }
 
   // Laporan mingguan: tambahkan daftar produk mengendap (tidak laku 14 hari+)
   if (period.kind === 'mingguan') {

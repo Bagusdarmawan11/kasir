@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Users, UserPlus, Trash2, ShieldCheck, RefreshCw, Send, Settings2, UploadCloud, MessageCircle } from 'lucide-react';
+import { Users, UserPlus, Trash2, ShieldCheck, RefreshCw, Send, Settings2, UploadCloud, MessageCircle, Download } from 'lucide-react';
 import { Card, Field, Input, Select, Button, EmptyState } from '@/components/ui';
 import { ConfirmDialog } from '@/components/Modal';
 import { RoleGuard } from '@/components/RoleGuard';
@@ -50,6 +50,13 @@ export function PengaturanClient() {
   const [scheduleWib, setScheduleWib] = useState('00:00');
   const [reportMode, setReportMode] = useState<'today' | 'yesterday' | 'custom'>('today');
   const [reportDaysAgo, setReportDaysAgo] = useState('0');
+  const [namaWarungDb, setNamaWarungDb] = useState('');
+  const [laporanMingguan, setLaporanMingguan] = useState(true);
+  const [laporanBulanan, setLaporanBulanan] = useState(true);
+  const [notifStokHabis, setNotifStokHabis] = useState(false);
+  const [templateLaporan, setTemplateLaporan] = useState('');
+  const [sendingNotif, setSendingNotif] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
   const [savingWA, setSavingWA] = useState(false);
   const [sending, setSending] = useState(false);
   const [waLoaded, setWaLoaded] = useState(false);
@@ -65,7 +72,7 @@ export function PengaturanClient() {
   }
 
   async function loadWASettings() {
-    const { data } = await supabase.from('app_settings').select('key,value').in('key', ['fonnte_target', 'report_schedule_wib', 'report_mode', 'report_days_ago']);
+    const { data } = await supabase.from('app_settings').select('key,value').in('key', ['fonnte_target', 'report_schedule_wib', 'report_mode', 'report_days_ago', 'nama_warung', 'laporan_mingguan', 'laporan_bulanan', 'notif_stok_habis', 'template_laporan']);
     if (data) {
       const t = data.find((r: any) => r.key === 'fonnte_target');
       const s = data.find((r: any) => r.key === 'report_schedule_wib');
@@ -75,6 +82,16 @@ export function PengaturanClient() {
       if (s) setScheduleWib(s.value || '00:00');
       if (rm) setReportMode((rm.value as any) || 'today');
       if (rd) setReportDaysAgo(rd.value || '0');
+      const nw = data.find((r: any) => r.key === 'nama_warung');
+      const lm = data.find((r: any) => r.key === 'laporan_mingguan');
+      const lb = data.find((r: any) => r.key === 'laporan_bulanan');
+      const ns = data.find((r: any) => r.key === 'notif_stok_habis');
+      const tl = data.find((r: any) => r.key === 'template_laporan');
+      if (nw) setNamaWarungDb(nw.value || '');
+      if (lm) setLaporanMingguan(lm.value !== 'false');
+      if (lb) setLaporanBulanan(lb.value !== 'false');
+      if (ns) setNotifStokHabis(ns.value === 'true');
+      if (tl) setTemplateLaporan(tl.value || '');
     }
     setWaLoaded(true);
   }
@@ -149,6 +166,11 @@ export function PengaturanClient() {
         { key: 'report_schedule_wib', value: scheduleWib },
         { key: 'report_mode', value: reportMode },
         { key: 'report_days_ago', value: reportDaysAgo },
+        { key: 'nama_warung', value: namaWarungDb },
+        { key: 'laporan_mingguan', value: String(laporanMingguan) },
+        { key: 'laporan_bulanan', value: String(laporanBulanan) },
+        { key: 'notif_stok_habis', value: String(notifStokHabis) },
+        { key: 'template_laporan', value: templateLaporan },
       ], { onConflict: 'key' });
       toast.success(`Pengaturan disimpan! Laporan akan dikirim tiap hari jam ${scheduleWib} WIB.`);
     } finally { setSavingWA(false); }
@@ -180,21 +202,14 @@ export function PengaturanClient() {
           <h2 className="mb-4 flex items-center gap-2 font-display text-base font-bold text-ink">
             <MessageCircle size={16} className="text-mint-500" /> Laporan WhatsApp Otomatis
           </h2>
-
           <div className="mb-3 rounded-xl bg-lilac-50 p-3 text-[11px] leading-relaxed text-ink-soft">
-            Nomor target bisa diisi lebih dari satu, pisah koma. Contoh: <span className="font-mono font-bold">6281234567890,6289876543210</span><br />
-            Untuk group WhatsApp, masukkan Group ID dari dashboard Fonnte (format: <span className="font-mono">xxxx@g.us</span>).<br />
-            <span className="text-mint-600 font-bold">✅ Nomor yang disimpan di sini langsung aktif — tidak perlu Redeploy.</span>
+            Pisah koma untuk multiple nomor: <span className="font-mono font-bold">6281234567890,6289876543210</span><br/>
+            Group WA pakai Group ID dari Fonnte (format: <span className="font-mono">xxxx@g.us</span>).<br/>
+            <span className="text-mint-600 font-bold">✅ Semua perubahan di sini langsung aktif tanpa Redeploy.</span>
           </div>
-
           <div className="space-y-3">
             <Field label="Nomor Target (pisah koma untuk multiple)">
-              <Input
-                value={fonntTarget}
-                onChange={(e) => setFonnteTarget(e.target.value)}
-                placeholder="6281234567890,group-id@g.us"
-                disabled={!waLoaded}
-              />
+              <Input value={fonntTarget} onChange={(e) => setFonnteTarget(e.target.value)} placeholder="6281234567890,group-id@g.us" disabled={!waLoaded} />
             </Field>
             <Field label="Periode Laporan Harian">
               <Select value={reportMode} onChange={(e) => setReportMode(e.target.value as any)}>
@@ -205,21 +220,42 @@ export function PengaturanClient() {
             </Field>
             {reportMode === 'custom' && (
               <Field label="Berapa hari yang lalu?" hint="0 = hari ini, 1 = kemarin, 2 = dua hari lalu">
-                <Input
-                  type="number"
-                  min="0"
-                  max="30"
-                  value={reportDaysAgo}
-                  onChange={(e) => setReportDaysAgo(e.target.value)}
-                />
+                <Input type="number" min="0" max="30" value={reportDaysAgo} onChange={(e) => setReportDaysAgo(e.target.value)} />
               </Field>
             )}
+            <div className="rounded-xl border border-lilac-100 p-3 space-y-3">
+              <p className="text-[11px] font-bold text-ink-soft">Laporan Tambahan Otomatis</p>
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <p className="text-sm font-semibold text-ink">Laporan Mingguan</p>
+                  <p className="text-[11px] text-ink-soft">Dikirim setiap Senin, merangkum 7 hari terakhir</p>
+                </div>
+                <button type="button" onClick={() => setLaporanMingguan((v) => !v)}
+                  className={`relative h-6 w-11 flex-none rounded-full transition-colors ${laporanMingguan ? 'bg-mint-400' : 'bg-lilac-200'}`}>
+                  <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${laporanMingguan ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </button>
+              </label>
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <p className="text-sm font-semibold text-ink">Laporan Bulanan</p>
+                  <p className="text-[11px] text-ink-soft">Dikirim setiap tanggal 1, merangkum bulan lalu</p>
+                </div>
+                <button type="button" onClick={() => setLaporanBulanan((v) => !v)}
+                  className={`relative h-6 w-11 flex-none rounded-full transition-colors ${laporanBulanan ? 'bg-mint-400' : 'bg-lilac-200'}`}>
+                  <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${laporanBulanan ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </button>
+              </label>
+            </div>
+            <Field label="Template Pesan Kustom (opsional)" hint="Kosongkan untuk pakai format default. Gunakan {isi} sebagai placeholder konten laporan.">
+              <textarea value={templateLaporan} onChange={(e) => setTemplateLaporan(e.target.value)}
+                placeholder={"Halo! Berikut laporan warung hari ini:\n\n{isi}\n\nTerima kasih 🙏"}
+                rows={3} className="w-full rounded-xl border border-lilac-200 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-peach-400 focus:ring-2 focus:ring-peach-100 resize-none" />
+            </Field>
             <div className="rounded-xl bg-lilac-50 p-3 text-[11px] text-ink-soft">
-              <p className="font-bold text-ink">⏰ Jadwal otomatis via cron-job.org</p>
+              <p className="font-bold text-ink">⏰ Jadwal via cron-job.org</p>
               <p className="mt-1">Atur jadwal di cron-job.org. Tombol "Kirim Sekarang" untuk kirim manual kapanpun.</p>
             </div>
           </div>
-
           <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Button full onClick={saveWASettings} disabled={savingWA || !waLoaded}>
               <Settings2 size={15} /> {savingWA ? 'Menyimpan...' : 'Simpan Pengaturan'}
@@ -228,12 +264,61 @@ export function PengaturanClient() {
               <Send size={15} /> {sending ? 'Mengirim...' : 'Kirim Sekarang'}
             </Button>
           </div>
-          <p className="mt-2 text-[11px] text-ink-soft">
-            Laporan otomatis dikirim tiap hari tepat di jam yang kamu set. Perubahan jam langsung aktif tanpa perlu redeploy.
-            "Kirim Sekarang" selalu mengirim laporan hari ini segera.
-          </p>
         </Card>
 
+        {/* ── Nama Warung ── */}
+        <Card>
+          <h2 className="mb-3 flex items-center gap-2 font-display text-base font-bold text-ink">
+            <Settings2 size={16} className="text-lilac-400" /> Nama Warung
+          </h2>
+          <p className="mb-3 text-[11px] text-ink-soft">Nama yang tampil di navbar, laporan WA, dan struk. Kosongkan untuk pakai nama dari env var Vercel.</p>
+          <Field label="Nama Warung">
+            <Input value={namaWarungDb} onChange={(e) => setNamaWarungDb(e.target.value)} placeholder="Warung Mama Indah" />
+          </Field>
+          <div className="mt-3">
+            <Button full onClick={saveWASettings} disabled={savingWA || !waLoaded}>
+              <Settings2 size={15} /> {savingWA ? 'Menyimpan...' : 'Simpan Nama'}
+            </Button>
+          </div>
+        </Card>
+
+        {/* ── Notifikasi & Backup ── */}
+        <Card>
+          <h2 className="mb-3 flex items-center gap-2 font-display text-base font-bold text-ink">
+            <Send size={16} className="text-rose-400" /> Notifikasi & Backup
+          </h2>
+          <div className="space-y-2">
+            <Button full variant="ghost" onClick={async () => {
+              setSendingNotif(true);
+              try {
+                const res = await fetch('/api/settings/notif-stok', { method: 'POST' });
+                const d = await res.json();
+                if (!d.ok) toast.error(d.error);
+                else if (d.count === 0) toast.success('Tidak ada produk stok habis saat ini 👍');
+                else toast.success(`Notifikasi ${d.count} produk stok habis terkirim!`);
+              } finally { setSendingNotif(false); }
+            }} disabled={sendingNotif}>
+              <Send size={15} /> {sendingNotif ? 'Mengirim...' : 'Kirim Notifikasi Stok Habis ke WA'}
+            </Button>
+            <Button full variant="ghost" onClick={async () => {
+              setExportingCsv(true);
+              try {
+                const res = await fetch('/api/settings/export-csv');
+                if (!res.ok) { toast.error('Gagal export'); return; }
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `transaksi-${new Date().toLocaleDateString('sv')}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+                toast.success('Export berhasil! File CSV sudah didownload.');
+              } finally { setExportingCsv(false); }
+            }} disabled={exportingCsv}>
+              <Download size={15} /> {exportingCsv ? 'Mengekspor...' : 'Export Semua Transaksi ke CSV'}
+            </Button>
+          </div>
+        </Card>
         {/* ── Pengguna ── */}
         <div>
           <div className="mb-3 flex items-center justify-between">
