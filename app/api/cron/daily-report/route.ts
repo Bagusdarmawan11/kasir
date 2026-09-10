@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { determineReportPeriods, buildReportMessage } from '@/lib/reporting';
+import { determineReportPeriodsAsync, buildReportMessage } from '@/lib/reporting';
 import { sendWhatsAppMessage } from '@/lib/fonnte';
 
 export const maxDuration = 30;
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
   }
 
   const namaWarung = process.env.NEXT_PUBLIC_NAMA_WARUNG || 'Warung Saya';
-  const periods = determineReportPeriods();
+  const periods = await determineReportPeriodsAsync();
   const results: { kind: string; sent: boolean; error?: string }[] = [];
 
   for (const period of periods) {

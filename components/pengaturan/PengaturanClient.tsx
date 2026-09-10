@@ -48,6 +48,8 @@ export function PengaturanClient() {
   // ── WA Report settings ──
   const [fonntTarget, setFonnteTarget] = useState('');
   const [scheduleWib, setScheduleWib] = useState('00:00');
+  const [reportMode, setReportMode] = useState<'today' | 'yesterday' | 'custom'>('today');
+  const [reportDaysAgo, setReportDaysAgo] = useState('0');
   const [savingWA, setSavingWA] = useState(false);
   const [sending, setSending] = useState(false);
   const [waLoaded, setWaLoaded] = useState(false);
@@ -63,12 +65,16 @@ export function PengaturanClient() {
   }
 
   async function loadWASettings() {
-    const { data } = await supabase.from('app_settings').select('key,value').in('key', ['fonnte_target', 'report_schedule_wib']);
+    const { data } = await supabase.from('app_settings').select('key,value').in('key', ['fonnte_target', 'report_schedule_wib', 'report_mode', 'report_days_ago']);
     if (data) {
       const t = data.find((r: any) => r.key === 'fonnte_target');
       const s = data.find((r: any) => r.key === 'report_schedule_wib');
+      const rm = data.find((r: any) => r.key === 'report_mode');
+      const rd = data.find((r: any) => r.key === 'report_days_ago');
       if (t) setFonnteTarget(t.value);
       if (s) setScheduleWib(s.value || '00:00');
+      if (rm) setReportMode((rm.value as any) || 'today');
+      if (rd) setReportDaysAgo(rd.value || '0');
     }
     setWaLoaded(true);
   }
@@ -141,6 +147,8 @@ export function PengaturanClient() {
       await supabase.from('app_settings').upsert([
         { key: 'fonnte_target', value: fonntTarget.trim() },
         { key: 'report_schedule_wib', value: scheduleWib },
+        { key: 'report_mode', value: reportMode },
+        { key: 'report_days_ago', value: reportDaysAgo },
       ], { onConflict: 'key' });
       toast.success(`Pengaturan disimpan! Laporan akan dikirim tiap hari jam ${scheduleWib} WIB.`);
     } finally { setSavingWA(false); }
@@ -188,9 +196,27 @@ export function PengaturanClient() {
                 disabled={!waLoaded}
               />
             </Field>
+            <Field label="Periode Laporan Harian">
+              <Select value={reportMode} onChange={(e) => setReportMode(e.target.value as any)}>
+                <option value="today">Hari ini — transaksi hari yang sama saat laporan dikirim</option>
+                <option value="yesterday">Kemarin — transaksi hari sebelumnya</option>
+                <option value="custom">Custom — pilih berapa hari yang lalu</option>
+              </Select>
+            </Field>
+            {reportMode === 'custom' && (
+              <Field label="Berapa hari yang lalu?" hint="0 = hari ini, 1 = kemarin, 2 = dua hari lalu">
+                <Input
+                  type="number"
+                  min="0"
+                  max="30"
+                  value={reportDaysAgo}
+                  onChange={(e) => setReportDaysAgo(e.target.value)}
+                />
+              </Field>
+            )}
             <div className="rounded-xl bg-lilac-50 p-3 text-[11px] text-ink-soft">
-              <p className="font-bold text-ink">⏰ Jadwal Pengiriman: setiap hari jam 00:00 WIB</p>
-              <p className="mt-1">Laporan dikirim otomatis setiap hari tepat tengah malam WIB. Untuk ubah jam, edit file <span className="font-mono">vercel.json</span> di GitHub (butuh redeploy).</p>
+              <p className="font-bold text-ink">⏰ Jadwal otomatis via cron-job.org</p>
+              <p className="mt-1">Atur jadwal di cron-job.org. Tombol "Kirim Sekarang" untuk kirim manual kapanpun.</p>
             </div>
           </div>
 

@@ -47,22 +47,50 @@ function dayNameOf(dateStr: string): string {
 }
 
 /**
- * Tentukan periode laporan apa saja yang harus dikirim HARI INI (dipanggil
- * sekitar jam 00:00 WIB, jadi "hari ini" di sini berarti hari yang baru
- * saja berakhir semalam).
+ * Tentukan periode laporan apa saja yang harus dikirim HARI INI.
+ * Mode laporan dibaca dari database (report_mode):
+ *   - 'today'     : hari ini
+ *   - 'yesterday' : kemarin
+ *   - 'custom'    : N hari yang lalu (dari report_days_ago)
  */
-export function determineReportPeriods(now: Date = new Date()): ReportPeriod[] {
+export async function determineReportPeriodsAsync(now: Date = new Date()): Promise<ReportPeriod[]> {
   const todayWib = wibDateString(now);
+
+  // Baca mode dari database
+  let mode = 'today';
+  let daysAgo = 0;
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (supabaseUrl && serviceKey) {
+      const res = await fetch(
+        `${supabaseUrl}/rest/v1/app_settings?key=in.(report_mode,report_days_ago)&select=key,value`,
+        { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+      );
+      if (res.ok) {
+        const rows = await res.json();
+        const modeRow = rows.find((r: any) => r.key === 'report_mode');
+        const daysRow = rows.find((r: any) => r.key === 'report_days_ago');
+        if (modeRow?.value) mode = modeRow.value;
+        if (daysRow?.value) daysAgo = parseInt(daysRow.value) || 0;
+      }
+    }
+  } catch { /* pakai default */ }
+
+  const targetDate = mode === 'yesterday'
+    ? addDaysToDateString(todayWib, -1)
+    : mode === 'custom'
+    ? addDaysToDateString(todayWib, -daysAgo)
+    : todayWib;
+
   const yesterday = addDaysToDateString(todayWib, -1);
   const periods: ReportPeriod[] = [];
 
-  // Harian: untuk hari INI (bukan kemarin) supaya laporan mencerminkan
-  // transaksi hari yang sama saat laporan dikirim
   periods.push({
     kind: 'harian',
-    label: `${dayNameOf(todayWib)}, ${formatLabelDate(todayWib)}`,
-    startDate: todayWib,
-    endDate: todayWib,
+    label: `${dayNameOf(targetDate)}, ${formatLabelDate(targetDate)}`,
+    startDate: targetDate,
+    endDate: targetDate,
   });
 
   // Mingguan: kalau HARI INI (WIB) adalah Senin, laporkan 7 hari terakhir (Senin lalu - Minggu kemarin)

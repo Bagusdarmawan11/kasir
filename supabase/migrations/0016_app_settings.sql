@@ -26,3 +26,9 @@ on conflict (key) do nothing;
 insert into app_settings (key, value) values
   ('report_schedule_wib', '00:00')
 on conflict (key) do nothing;
+
+-- Tambah key mode laporan
+insert into app_settings (key, value) values
+  ('report_mode', 'today'),
+  ('report_days_ago', '0')
+on conflict (key) do nothing;
