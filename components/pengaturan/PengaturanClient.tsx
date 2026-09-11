@@ -246,11 +246,28 @@ export function PengaturanClient() {
                 </button>
               </label>
             </div>
-            <Field label="Template Pesan Kustom (opsional)" hint="Kosongkan untuk pakai format default. Gunakan {isi} sebagai placeholder konten laporan.">
-              <textarea value={templateLaporan} onChange={(e) => setTemplateLaporan(e.target.value)}
-                placeholder={"Halo! Berikut laporan warung hari ini:\n\n{isi}\n\nTerima kasih 🙏"}
-                rows={3} className="w-full rounded-xl border border-lilac-200 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-peach-400 focus:ring-2 focus:ring-peach-100 resize-none" />
-            </Field>
+            <div>
+              <p className="mb-1.5 text-xs font-bold text-ink-soft">Template Pesan Laporan</p>
+              <div className="mb-2 grid grid-cols-1 gap-2">
+                {[
+                  { label: 'Default', value: '', desc: 'Format bawaan sistem' },
+                  { label: 'Formal', value: 'Yth. Pemilik Warung,\n\nBerikut laporan penjualan:\n\n{isi}\n\nHormat kami,\nSistem Kasir', desc: 'Gaya formal/profesional' },
+                  { label: 'Santai', value: 'Halo! 👋\n\nIni laporan warung hari ini ya:\n\n{isi}\n\nSemoga makin rame! 🙏', desc: 'Gaya santai dengan emoji' },
+                  { label: 'Singkat', value: '{isi}', desc: 'Isi laporan langsung tanpa pembuka/penutup' },
+                ].map((t) => (
+                  <button key={t.label} type="button"
+                    onClick={() => setTemplateLaporan(t.value)}
+                    className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition ${templateLaporan === t.value ? 'border-peach-300 bg-peach-50' : 'border-lilac-200 bg-white hover:bg-lilac-50'}`}>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-ink">{t.label}</p>
+                      <p className="text-[11px] text-ink-soft">{t.desc}</p>
+                    </div>
+                    {templateLaporan === t.value && <span className="text-peach-500 text-xs font-bold">✓ Aktif</span>}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-ink-soft">Gunakan <span className="font-mono bg-lilac-100 px-1 rounded">{"{isi}"}</span> sebagai placeholder isi laporan.</p>
+            </div>
             <div className="rounded-xl bg-lilac-50 p-3 text-[11px] text-ink-soft">
               <p className="font-bold text-ink">⏰ Jadwal via cron-job.org</p>
               <p className="mt-1">Atur jadwal di cron-job.org. Tombol "Kirim Sekarang" untuk kirim manual kapanpun.</p>
@@ -284,39 +301,51 @@ export function PengaturanClient() {
 
         {/* ── Notifikasi & Backup ── */}
         <Card>
-          <h2 className="mb-3 flex items-center gap-2 font-display text-base font-bold text-ink">
-            <Send size={16} className="text-rose-400" /> Notifikasi & Backup
+          <h2 className="mb-4 flex items-center gap-2 font-display text-base font-bold text-ink">
+            <Download size={16} className="text-lilac-400" /> Notifikasi &amp; Backup
           </h2>
-          <div className="space-y-2">
-            <Button full variant="ghost" onClick={async () => {
-              setSendingNotif(true);
-              try {
-                const res = await fetch('/api/settings/notif-stok', { method: 'POST' });
-                const d = await res.json();
-                if (!d.ok) toast.error(d.error);
-                else if (d.count === 0) toast.success('Tidak ada produk stok habis saat ini 👍');
-                else toast.success(`Notifikasi ${d.count} produk stok habis terkirim!`);
-              } finally { setSendingNotif(false); }
-            }} disabled={sendingNotif}>
-              <Send size={15} /> {sendingNotif ? 'Mengirim...' : 'Kirim Notifikasi Stok Habis ke WA'}
-            </Button>
-            <Button full variant="ghost" onClick={async () => {
-              setExportingCsv(true);
-              try {
-                const res = await fetch('/api/settings/export-csv');
-                if (!res.ok) { toast.error('Gagal export'); return; }
-                const blob = await res.blob();
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `transaksi-${new Date().toLocaleDateString('sv')}.csv`;
-                a.click();
-                URL.revokeObjectURL(url);
-                toast.success('Export berhasil! File CSV sudah didownload.');
-              } finally { setExportingCsv(false); }
-            }} disabled={exportingCsv}>
-              <Download size={15} /> {exportingCsv ? 'Mengekspor...' : 'Export Semua Transaksi ke CSV'}
-            </Button>
+          <div className="space-y-3">
+            <div className="rounded-xl border border-lilac-100 p-4">
+              <div className="mb-3">
+                <p className="font-semibold text-ink">Notifikasi Stok Habis</p>
+                <p className="text-[11px] text-ink-soft mt-0.5">Kirim pesan WA berisi daftar semua produk yang stoknya 0 ke nomor target.</p>
+              </div>
+              <Button full onClick={async () => {
+                setSendingNotif(true);
+                try {
+                  const res = await fetch('/api/settings/notif-stok', { method: 'POST' });
+                  const d = await res.json();
+                  if (!d.ok) toast.error(d.error);
+                  else if (d.count === 0) toast.success('Tidak ada produk stok habis saat ini 👍');
+                  else toast.success(`Notifikasi ${d.count} produk stok habis terkirim!`);
+                } finally { setSendingNotif(false); }
+              }} disabled={sendingNotif}>
+                <Send size={15} /> {sendingNotif ? 'Mengirim...' : 'Kirim Notifikasi Stok Habis'}
+              </Button>
+            </div>
+            <div className="rounded-xl border border-lilac-100 p-4">
+              <div className="mb-3">
+                <p className="font-semibold text-ink">Export Data Transaksi</p>
+                <p className="text-[11px] text-ink-soft mt-0.5">Download semua riwayat transaksi penjualan sebagai file CSV untuk backup atau analisis.</p>
+              </div>
+              <Button full variant="ghost" onClick={async () => {
+                setExportingCsv(true);
+                try {
+                  const res = await fetch('/api/settings/export-csv');
+                  if (!res.ok) { toast.error('Gagal export'); return; }
+                  const blob = await res.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `transaksi-${new Date().toLocaleDateString('sv')}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast.success('Export berhasil!');
+                } finally { setExportingCsv(false); }
+              }} disabled={exportingCsv}>
+                <Download size={15} /> {exportingCsv ? 'Mengekspor...' : 'Download CSV'}
+              </Button>
+            </div>
           </div>
         </Card>
         {/* ── Pengguna ── */}
@@ -387,33 +416,6 @@ export function PengaturanClient() {
             </div>
           </div>
 
-          <div className="my-3 flex items-center gap-3">
-            <div className="flex-1 border-t border-lilac-100" />
-            <span className="text-[11px] text-ink-soft">atau manual (kalau email tidak tersedia)</span>
-            <div className="flex-1 border-t border-lilac-100" />
-          </div>
-
-          {/* Cara 2: Manual via UUID */}
-          <div className="mb-1 rounded-xl bg-lilac-50 p-3 text-[11px] text-ink-soft">
-            Buka Supabase → Authentication → Users → copy UUID dari kolom UID → paste di bawah.
-          </div>
-          <form onSubmit={handleAddUser} className="space-y-2 mt-2">
-            <Field label="User ID (UUID dari Supabase)">
-              <Input value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" className="font-mono text-sm" />
-            </Field>
-            <Field label="Nama tampilan">
-              <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Cth: Ibu, Kak Sari" />
-            </Field>
-            <Field label="Role">
-              <Select value={newRole} onChange={(e) => setNewRole(e.target.value as any)}>
-                <option value="kasir">Kasir — input penjualan saja</option>
-                <option value="admin">Admin — kelola produk, stok, riwayat</option>
-              </Select>
-            </Field>
-            <Button type="submit" full disabled={savingUser}>
-              <ShieldCheck size={16} /> {savingUser ? 'Menyimpan...' : 'Tambahkan via UUID'}
-            </Button>
-          </form>
         </Card>
 
         {/* ── Import CSV ── */}

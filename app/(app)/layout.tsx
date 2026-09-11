@@ -1,9 +1,10 @@
 import { TopNav, BottomNav } from '@/components/Nav';
 import { Footer } from '@/components/Footer';
 import { RoleProvider } from '@/lib/RoleContext';
+import { getNamaWarung } from '@/lib/getNamaWarung';
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const nama = process.env.NEXT_PUBLIC_NAMA_WARUNG || 'Warung Saya';
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const nama = await getNamaWarung();
   return (
     <RoleProvider>
       <div className="flex min-h-screen flex-col bg-cream">
